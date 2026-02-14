@@ -1,11 +1,6 @@
 ---
-layout: post
-title:  "C 변수 선언의 type"
-date:   2024-07-04 17:14:22 +0900
-categories: language C
-typora-root-url: ./..
-on_hold: false
-use_math: false
+date: 2024-07-04
+categories: ["language", "C"]
 ---
 
 # 서론

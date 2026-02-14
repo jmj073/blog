@@ -1,6 +1,6 @@
 ---
 date: 2024-10-12
-categories: ["language"]
+categories: ["language", "C++", "algorithm"]
 ---
 
 안녕하십니까. 이번 글에서는 parametric search 알고리즘에서 C++의 STL(Standard Template Library)에 있는 `lower_bound` 함수와, `upper_bound` 함수를 사용하는 방법에 대해 얘기해보고자 합니다.

@@ -1,31 +1,20 @@
 ---
-layout: post
-title:  "Continuation과 call/cc"
-date:   2024-10-12 15:35:15 +0900
-categories: language concept
-typora-root-url: ./..
-on_hold: false
-use_math: false
+date:   2024-10-12
+categories: ["language"]
 ---
-
-{% comment %}
-
-[toc]
-
-{% endcomment %}
 
 이 글은 continuation 시리즈의 첫 글이다. 다음과 같은 순서로 이 시리즈를 진행해볼 생각이다.
 
 1. continuation과 `call/cc`
-2. delimited continuation
-3. continuation passing style(CPS)
+2. continuation passing style(CPS)
+3. delimited continuation
 4. continuation의 응용
 
 그럼 continuation과 `call/cc`. 시작하겠다.
 
 # 들어가기에 앞서...
 
-이 글에서는 의사 코드가 나온다. Scheme 문법을 사용할까 했지만 대부분의 사람들이 이에 익숙하지 않을 것이므로 필자가 임의로 만든 의사 코드?를 사용하겠다.
+이 글에서는 의사 코드가 나온다. Scheme 문법을 사용할까 했지만 대부분의 사람들이 이에 익숙하지 않을 것이므로 필자가 임의로 만든 의사 코드를 사용하겠다.
 
 이 글에서 나오는 의사 코드의 특징:
 + program은 0개 이상의 statement의 나열로 이루어진다. 예시는 다음과 같다.
@@ -36,21 +25,6 @@ use_math: false
       println(i);
   }
   let b = a + 6; // statement3
-  ```
-
-+ rust 언어와 같이 compound expression(복합 표현식)을 사용한다. compound expression의 예시(rust 코드)는 다음과 같다. 자주 등장하므로 꼭 이해하고 넘어가자.
-
-  ```rust
-  // rust에서는 중괄호안의 statement 나열에서 마지막에 ;를 붙이지 않으면 해당 표현식이 중괄호 전체 표현식의 값이 된다.
-  // 이는 함수에도 적용된다. 함수에서는 return 값으로 간주된다.
-  let x = {
-      let y = 10;
-      let z = 20;
-      y + z  // 복합 표현식의 마지막 줄이 전체 표현식의 값이 됨
-  };
-  println!("{}", x);  // 출력: 30
-  let a = if x != 30 { 1 } else { let b = 6; b + 4 }; // a는 10
-  fn foo() -> i32 { 3 * 11 } // 33을 반환하는 함수
   ```
 
 # Continuation이란?
@@ -69,7 +43,6 @@ instruction3
 ...
 ```
 
-> [!info]
 > 참고로, continuation을 "후속문"이라고 번역한 글도 있다. [여기](https://guruma.github.io/posts/2018-11-18-Continuation-Concept/)에서 볼 수 있다.
 
 # Continuation의 사용 예
@@ -114,16 +87,12 @@ Scheme은 Lisp(LISt Processing) 프로그래밍 언어의 방언이다. Lisp 언
 <application>           -> (<expression> <expression>*)
 ```
 
-> [!note]
-> 혹시 위의 문법이랍시고 적어놓은게 뭔지 잘 모르겠다면 [여기](https://ko.wikipedia.org/wiki/%EB%B0%B0%EC%BB%A4%EC%8A%A4-%EB%82%98%EC%9A%B0%EB%A5%B4_%ED%91%9C%EA%B8%B0%EB%B2%95)를 참고하자.
+> 혹시  위의 문법이랍시고 적어놓은게 뭔지 잘 모르겠다면 [여기](https://ko.wikipedia.org/wiki/%EB%B0%B0%EC%BB%A4%EC%8A%A4-%EB%82%98%EC%9A%B0%EB%A5%B4_%ED%91%9C%EA%B8%B0%EB%B2%95)를 참고하자.
 
-> [!note]
 > Scheme은 function 대신 procedure를, call(함수 호출) 대신 apply(프로시저 적용)라는 용어를 사용하는 경향이 있다. 위의 문법에서 `<application>`은 함수 호출이라 보면 된다.
 
-> [!info]
 > 기본 문법, 즉,  core syntactic form(예: lambda, if)은 몇개 없지만, Scheme은 syntactic extension을 정의할 수 있으며, syntactic extension은 한번 정의되고 나면, core form과 정확히 동일한 상태를 갖는다.
 
-> [!info]
 > core syntactic form에 반복에 관한 것이 없다는 것을 알 수 있다. Scheme은 반복을 표현하기 위해 tail recursion(꼬리 재귀)를 사용하며, Scheme의 구현체는 tail-call optimization을 수행해야 한다.
 
 ## 설명!
@@ -154,7 +123,6 @@ expression을 evaluate하는 동안 어느 시점에서든, 해당 지점에서 
 5. `cdr`의 값
 6. `x`의 값
 
-> [!note]
 > `(cdr x)`의 continuation은 `(if (null? x) (quote ()) (cdr x))`의 continuation과 같기 때문에 위에 나열되지 않았다.
 
 # 언어에서의 Continuation 지원
@@ -165,16 +133,18 @@ Scheme은 first-class continuation의 지원을 위해 `call-with-current-contin
 
 `call-with-current-continuation`이라는 이름에서도 알 수 있듯이, `call/cc`는 함수를 인수로 받아 해당 함수에 continuation을 인수로 넘겨서 호출한다. 예를 들어서 설명해 보겠다.
 
-+ `call-with-current-continuation`의 시그니쳐(`call_cc`라는 이름을 사용하겠다):
++ `call-with-current-continuation`의 시그니쳐(`callcc`라는 이름을 사용하겠다):
+  
   ```javascript
-  call_cc(func)
+  callcc(func)
   ```
   
-+ `func`의 시그니쳐: 아래에서 `k`는 continuation이며, `k`는 `call_cc(func)`의 continuation이다.
++ `func`의 시그니쳐: 아래에서 `k`는 continuation이며, `k`는 `callcc(func)`의 continuation이다.
+  
   ```javascript
   func(k)
   ```
-
+  
 + `k`의 시그니쳐: continuation `k`는 함수로서 표현된다. `k`에 인수로 `value`를 넘겨서 호출하면 `value`의 continuation이 `k`로 교체된다. `k`가 호출되지 않고 `func`가 반환되면 `call_cc(func)`의 값은 `func(k)`의 값이 된다.
   
   ```javascript
@@ -184,19 +154,23 @@ Scheme은 first-class continuation의 지원을 위해 `call-with-current-contin
 예시:
 
 ```javascript
-call_cc(function(k) { 5 * 4 })
+callcc(function(k) { return 5 * 4; })
 => 20
-call_cc(function(k) { 5 * k(4) })
+callcc(function(k) { return 5 * k(4); })
 => 4
-2 + call_cc(function(k) { 5 * k(4) })
+2 + callcc(function(k) { return 5 * k(4); })
 => 6
 ```
 
 + `cc` & `identity`: 앞으로의 설명에서 `cc`와 `identity`라는 함수를 사용하겠다. `cc` 함수는 이름 그대로 `current-continuation`을 반환하는 함수이다. 함수의 정의는 다음과 같다.
   
   ```javascript
-  let identity = function(v) { v };
-  let cc = function() { call_cc(identity) };
+  function identity(x) {
+      return x;
+  }
+  function cc() {
+      return callcc(identity);
+  }
   ```
 
 ## `call/cc` Continuation의 범위
@@ -208,11 +182,13 @@ continuation의 범위에 대해 먼저 설명해야 할지, 아니면 `call/cc`
 expression을 evaluate하는 동안 어느 시점에서든, 해당 지점에서 계산을 완료하거나 적어도 계속할(continue) 준비가 된 continuation이 있다.
 ```
 
-이 문장에서 "계산을 완료할 continuation"이 어느 부분인지를 살펴볼 것이다. "계산을 완료할 continuation"이 어느 부분인지 안다는 것은 어떤 continuation의 끝이 어디인지 안다는 것이다. 재귀 함수의 base case와 비슷한 맥락이라고 생각하면 된다.
+이 문장에서 "계산을 완료할 continuation"이 어느 부분인지를 살펴볼 것이다. "계산을 완료할 continuation"이 어느 부분인지 안다는 것은 어떤 continuation의 끝이 어디인지 안다는 것이다.
 
-필자의 생각으론 Scheme에서 continuation의 범위는 `<form>`이다. `<form>`에는 `<definition>`도 포함되지만, 그부분은 신경쓰지 말자... 어쨌든 `<form>`의 continuation이 "계산을 완료할 continuation"이 되는 것이다.
+범위는 해당 스레드를 기준으로 이루어지는 방식일 수도 있고, 여러가지 방식이 있을 수 있다. 일단 필자는 문법을 기준으로 범위를 결정하는 방식에 대해서 설명할 것이다.
 
-그래서, 아래의 예시에서는:
+예를 들어 Scheme에서의 continuation의 범위를 `<form>`이라고 가정해 볼 수 있다. `<form>`의 continuation이 "계산을 완료할 continuation"이 되는 것이다.
+
+그렇다면, 아래의 예시에서는:
 
 ```scheme
 ; 참고로 이 예시는 Scheme의 구현중 하나인 Chicken Scheme에서 실행되었다
@@ -229,7 +205,7 @@ expression을 evaluate하는 동안 어느 시점에서든, 해당 지점에서 
 hi 3; 4번 줄
 ```
 
-즉, continuation의 범위는 `<program>`이 아니기 때문에 다음과 같은 결과는 나오지 않는다.
+만약 continuatin의 범위를 `<program>`으로 했다면 다음과 같은 결과가 나왔을 것이다.
 
 ```scheme
 #<procedure (continuation . results)>; 2번 줄
@@ -237,37 +213,37 @@ hi 3; 4번 줄
 Error: call of non-procedure: 3; 3번 줄
 ```
 
-continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 들지도 모르겠지만, 일단 그전에 타임머신을 만들 수 있을지를 먼저 따져봐야 할 것이다. 왜냐하면 lisp는 [read-eval-print loop](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop)(REPL)를 제공하기 때문이다. continuation의 범위가 `<program>`이라면 특정 continuation 오브젝트의 호출 시점에 전체 프로그램을 알아야 하는데 타임머신을 사용하는 것 외에는 알길이 있을 것 같지는 않다.
+continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 들지도 모르겠지만, 일단 그전에 타임머신을 만들 수 있을지를 먼저 따져봐야 할 것이다. 왜냐하면 lisp는 [read-eval-print loop](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop)(REPL)를 제공하기 때문이다. continuation의 범위가 `<program>`이라면 특정 continuation 오브젝트의 호출 시점에 전체 프로그램을 알아야 하는데 타임머신을 사용하는 것 외에는 알길이 있을 것 같지는 않다. (REPL의 각 라인이 `<program>`의 일부분이라는 가정 하에.)
 
-아무튼 Scheme의 continuation의 범위는 `<form>`이고, 필자는 의사 코드의 continuation의 범위를 정할 필요가 있다. 앞서 의사코드 program은 0개 이상의 statement의 나열로 이루어진다고 했으므로, 각각의 최상위 statement(다른 statement에 포함되지 않는 statement)를 continuation의 범위로 정하겠다.
+아무튼 필자는 의사 코드의 continuation의 범위를 정할 필요가 있다. 앞서 의사코드 program은 0개 이상의 statement의 나열로 이루어진다고 했으므로, 각각의 최상위 statement(다른 statement에 포함되지 않는 statement)를 continuation의 범위로 정하겠다.
 
 ## `call/cc`를 사용해보자!
 
-여기서는 `call/cc`의 사용 예에 대해 좀더 다루겠다. 간단한 예시들을 다룰 것이며, coroutine 같은 것은 "continuation의 응용"에서 다룰 것이다. 참고로 예시들중에 몇몇은 [The Scheme Programming Language](https://www.scheme.com/tspl3/further.html#./further:h3)와 [여기](https://guruma.github.io/posts/2018-11-18-Continuation-Concept/#_%ED%9B%84%EC%86%8D%EB%AC%B8_%EC%9D%B4%EB%94%94%EC%97%84)를 참고하였다. 의사 코드는 실행이 불가능하니 직접 실행해 보고 싶다면 두 글의 Scheme 코드를 실행해 보자.
+여기서는 `call/cc`의 사용 예에 대해 좀더 다루겠다. 간단한 예시들을 다룰 것이며, coroutine 같은 것은 "continuation의 응용"에서 다룰 것이다. 참고로 예시들중에 몇몇은 [The Scheme Programming Language](https://www.scheme.com/tspl3/further.html#./further:h3)와 [여기](https://guruma.github.io/posts/2018-11-18-Continuation-Concept/#_%ED%9B%84%EC%86%8D%EB%AC%B8_%EC%9D%B4%EB%94%94%EC%97%84)를 참고하였다. 의사 코드는 실행이 불가능하니 직접 실행해 보고 싶다면 두 글의 Scheme 코드를 실행해 보자(아니면 필자가 만든 [sol](https://github.com/jmj073/sol) 프로젝트를 살펴보자. `callcc`를 지원하는 중괄호 문법의 lua이다).
 
 + **탈출 만들기**: 다음은 `it` iterator의 각 숫자를 곱하여 결과를 반환하는 함수이다. 원소에 `0`이 있으면 항상 결과가 `0`이 되므로, 그 뒤를 계산할 필요가 없기 때문에 continuation을 사용하여 `0`을 바로 반환한다.
   
     ```javascript
-    let product = function(it) {
-        call_cc(function(k) {
-            let f = function(it) {
+    function product(it) {
+        return callcc(function(k) {
+    		function f(it) {
                 if (it.end()) return 1;
                 let cur = it.next();
                 if (cur == 0) k(0);
-                cur * f(it)
-            };
-            f(it)
-        })
+                return cur * f(it);
+            }
+            return f(it);
+        });
     };
     ```
     
 + **"hi"가 두개**:
     ```javascript
-    {
+    function foo() {
         let x = cc();
-        x(function(ignore) { "hi" })
+        return x(function(ignore) { "hi" });
     }
-    => "hi"
+    foo() => "hi"
     ```
     해석:
     ```javascript
@@ -283,7 +259,7 @@ continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 �
     ```
     
 + **ii**: (Scheme으로 볼 때는 복잡해 보였는데 `cc`와 `identity`로 인해 간단해보인다...)
-    
+  
     ```javascript
     cc()(identity)("HEY!")
     => "HEY!"
@@ -299,21 +275,21 @@ continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 �
 + **retry**:
     ```javascript
     let retry;
-    let factorial = function(n) {
+    function factorial(n) {
         if (n == 0) {
-            call_cc(function(k) { retry = k; 1 })
+            return call_cc(function(k) { retry = k; 1 });
         } else {
-            n * factorial(n - 1)
+            return n * factorial(n - 1);
         }
-    };
-                     n:   4    3    2    1    0
-    factorial(4); => 24  (4 * (3 * (2 * (1 * (1)))))
-    retry(1);     => 24  (4 * (3 * (2 * (1 * (1)))))
-    retry(2);     => 48  (4 * (3 * (2 * (1 * (2)))))
-    retry(5);     => 120 (4 * (3 * (2 * (1 * (5)))))
+    }
+                    n:   4    3    2    1    0
+    factorial(4) => 24  (4 * (3 * (2 * (1 * (1)))))
+    retry(1)     => 24  (4 * (3 * (2 * (1 * (1)))))
+    retry(2)     => 48  (4 * (3 * (2 * (1 * (2)))))
+    retry(5)     => 120 (4 * (3 * (2 * (1 * (5)))))
     ```
 
-+ **변수 참조 1**: "변수 참조 1"과 "변수 참조 2"의 출력 결과에 차이가 있는 이유는 1은 변수가 다른 것을 가리키게 바꾼 것이고, 2는 변수가 가리키는 오브젝트 자체를 수정한 것이기 때문이다. (이는 binding이라거나, scoping, closure, context 같은 것과 관련이 있을 것 같은데, 필자는 이에 대해 잘 모르므로 나중에 설명을 덪붙여 보도록 하겠다.)
++ **변수 참조 1**: "변수 참조 1"과 "변수 참조 2"의 출력 결과에 차이가 있는 이유는 1은 변수가 다른 것을 가리키게 바꾼 것이고, 2는 변수가 가리키는 오브젝트 자체를 수정한 것이기 때문이다.
   
     ```javascript
     {
@@ -326,8 +302,8 @@ continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 �
             k(function(ignore) { println("hi"); });
         } else {
             println("false");
-        };
-    };
+        }
+    }
     ```
     output:
     ```
@@ -348,8 +324,8 @@ continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 �
             k(function(ignore) { println("hi"); });
         } else {
             println("false");
-        };
-    };
+        }
+    }
     ```
     output:
     ```
@@ -377,7 +353,7 @@ continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 �
     let yin  = (function(k) { print("@"); k })(cc());
     let yang = (function(k) { print("*"); k })(cc());
     yin(yang);
-};
+}
 ```
 
 위 코드는 Scheme으로 되어 있던 것을 의사 코드로 옮긴 것이다. 사실 아래 코드와 출력 결과가 다를게 없지만, 위 코드가 더 있어보인다.
@@ -389,7 +365,7 @@ continuation의 범위를 `<program>`으로 할 수 있을까?라는 의문이 �
     let yang = cc();
     print("*");
     yin(yang);
-};
+}
 ```
 
 코드의 출력은 아래와 같다. `*`이 하나씩 늘어나면서 출력이 계속된다.
@@ -407,7 +383,7 @@ let b = cc;
     let yin  = (function(k) { print("@"); k })(a());
     let yang = (function(k) { print("*"); k })(b());
     yin(yang);
-};
+}
 ```
 
 일단 다음과 같은 정의를 해보자.
@@ -475,13 +451,11 @@ OUTPUT(n) =
 
 예상치 않게 두가지 경우가 나왔지만 `OUTPUT(0)`이 `@*`이 되게 하는 것은 `YIN(-1)` = `A`, `YANG(-1)` = `A`이므로, 이를 `N`이 -1일 때로 간주하자.
 
-음양은 더 다뤄볼까 했으나 더하다간 음양오행(陰陽五行)까지 나올 것 같으므로, 음양은 언젠가 글을 한번 따로 써보도록 하겠다.
-
 # 나오기에 앞서...
 
 사실 글을 시리즈로 나누지 않고 하나로 적으려 했지만 생각보다 글이 길어지고, 자료조사와 글을 작성하는 일이 매우 귀찮은 일이라는 것을 깨달았기 때문에 다음으로 미루기로 했다. continuation을 "계속할 준비가 된 continuation"에서, "계산을 완료할 continuation"으로 바꿨을 뿐이다. 이 `<program>`은 `<form>`이 하나이지는 않을 것이다. 하지만 필자는 타임머신이 없기 때문에 확답은 못한다.
 
-글을 적으면서 약간 아쉽기도 했다. 이론에 대해 아는게 적다보니 글의 깊이가 얕아지는 듯 하다. 그래도 공부하면서 점차 글을 보완해나갈 생각이다. 어쨌든 다음은 "delimited continuation"이다. 사실 필자는 이 글을 적는 현 시점에 delimited continuation에 대해 아는 것이 없으므로 공부한다음에 다음 편을 내보도록 하겠다.
+글을 적으면서 약간 아쉽기도 했다. 이론에 대해 아는게 적다보니 글의 깊이가 얕아지는 듯 하다. 그래도 공부하면서 점차 글을 보완해나갈 생각이다.
 
 # Reference
 
